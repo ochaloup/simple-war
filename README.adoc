@@ -1,0 +1,78 @@
+= Simple war
+
+A simple war application.
+
+== How to on OpenShift with EAP development
+
+* Deploy an Operator with EAP changeset
++
+NOTE: EAP Operator changes to https://github.com/wildfly/wildfly-operator[WildFlyOperator] is at https://github.com/jbossas/eap-operator-packaging/blob/cde6f7dbfeac73ce6fd7a13272d86de227157766/eap-operator/cekit/image.yaml#L20
++
+[source,sh]
+----
+git clone https://github.com/ochaloup/wildfly-operator.git -b eap-operator-on-master
+----
++
+* Create EAP ImageStreams defined in https://github.com/jboss-container-images/jboss-eap-openshift-templates
++
+[source,sh]
+----
+oc create -f \
+  https://raw.githubusercontent.com/jboss-container-images/jboss-eap-openshift-templates/eap74/eap74-openjdk11-image-stream.json
+----
++
+* Build the `simple-war.war` with `mvn clean package`
+* Prepare directory to create a build from `mkdir target/openshift`
+* Copy resources to the directory `cp target/simple-war.war target/openshift`
+* Create a build and start a build of the `simple-war` application
++
+[source,sh]
+----
+oc new-build --strategy source --binary --image-stream jboss-eap74-openjdk11-openshift --name simple-war
+oc start-build simple-war --from-dir target/openshift
+----
++
+* Prepare application template for Operator to deploy it
++
+[source,yaml]
+----
+cat > /tmp/operator-template-cr.yaml <<EOF
+# OpenShift template for crating WildFlyServer object parametrized with application image
+apiVersion: v1
+kind: Template
+metadata:
+  name: wfly-operator-template
+  annotations:
+    description: "Starting WildFlyOperator application"
+    tags: "wildfly,operator,application"
+parameters:
+  - description: Application name
+    name: APPLICATION_NAME
+    value: simple-war
+  - description: S2I built application image
+    name: APPLICATION_IMAGE
+    value: image-registry.openshift-image-registry.svc:5000/projectname/simple-war:latest
+labels:
+  template: "wildfly-operator-application-template"
+objects:
+  - apiVersion: wildfly.org/v1alpha1
+    kind: WildFlyServer
+    metadata:
+      name: \${APPLICATION_NAME}
+    spec:
+      applicationImage: \${APPLICATION_IMAGE}
+      replicas: 1
+      # false as running with standalone WildFly
+      bootableJar: false
+EOF
+----
++
+* Create the application based on the template
++
+[source,sh]
+----
+oc process -n $(oc project -q) -f /tmp/operator-template-cr.yaml \
+      -p APPLICATION_IMAGE=image-registry.openshift-image-registry.svc:5000/$(oc project -q)/simple-war \
+      -p APPLICATION_NAME=simple-war \
+  | oc create -f -
+----
