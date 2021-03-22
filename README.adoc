@@ -82,6 +82,13 @@ objects:
 EOF
 ----
 +
+* Better to add a viewer role to not get cluster failures
++
+[source,sh]
+----
+oc policy add-role-to-user view system:serviceaccount:$(oc project -q):default -n $(oc project -q)
+----
++
 * Create the application based on the template
 +
 [source,sh]
@@ -91,4 +98,10 @@ oc process -n $(oc project -q) -f /tmp/operator-template-cr.yaml \
       -p APPLICATION_NAME=simple-war \
   | oc create -f -
 ----
-
++
+* Patch the replica size
++
+[source,sh]
+----
+oc patch wildflyserver simple-war -p '[{"op":"replace", "path":"/spec/replicas", "value":3}]' --type json
+----
