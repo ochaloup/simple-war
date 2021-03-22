@@ -21,6 +21,21 @@ oc create -f \
   https://raw.githubusercontent.com/jboss-container-images/jboss-eap-openshift-templates/eap74/eap74-openjdk11-image-stream.json
 ----
 +
+* Manual image download could be needed if the ImageStream download fails
++
+[source,sh]
+----
+# if following fails
+oc describe is jboss-eap74-openjdk11-openshift
+
+# manual pull and push to OC
+docker login registry.redhat.io
+docker pull registry-proxy.engineering.redhat.com/rh-osbs/jboss-eap-7-tech-preview-eap74-openjdk11-openshift-rhel8:7.4.0.Beta-4
+docker tag registry-proxy.engineering.redhat.com/rh-osbs/jboss-eap-7-tech-preview-eap74-openjdk11-openshift-rhel8:7.4.0.Beta-4 default-route-openshift-image-registry.apps-crc.testing/$(oc project -q)/jboss-eap74-openjdk11-openshift:7.4.0
+docker push default-route-openshift-image-registry.apps-crc.testing/$(oc project -q)/jboss-eap74-openjdk11-openshift:7.4.0 --tls-verify=false
+
+----
++
 * Build the `simple-war.war` with `mvn clean package`
 * Prepare directory to create a build from `mkdir target/openshift`
 * Copy resources to the directory `cp target/simple-war.war target/openshift`
@@ -28,7 +43,7 @@ oc create -f \
 +
 [source,sh]
 ----
-oc new-build --strategy source --binary --image-stream jboss-eap74-openjdk11-openshift --name simple-war
+oc new-build --strategy source --binary --image-stream jboss-eap74-openjdk11-openshift:7.4.0 --name simple-war
 oc start-build simple-war --from-dir target/openshift
 ----
 +
@@ -76,3 +91,4 @@ oc process -n $(oc project -q) -f /tmp/operator-template-cr.yaml \
       -p APPLICATION_NAME=simple-war \
   | oc create -f -
 ----
+
