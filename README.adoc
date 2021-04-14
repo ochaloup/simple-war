@@ -52,7 +52,7 @@ oc start-build simple-war --from-dir target/openshift
 [source,yaml]
 ----
 cat > /tmp/operator-template-cr.yaml <<EOF
-# OpenShift template for crating WildFlyServer object parametrized with application image
+# OpenShift template for creating WildFlyServer object parametrized with application image
 apiVersion: v1
 kind: Template
 metadata:
@@ -104,4 +104,16 @@ oc process -n $(oc project -q) -f /tmp/operator-template-cr.yaml \
 [source,sh]
 ----
 oc patch wildflyserver simple-war -p '[{"op":"replace", "path":"/spec/replicas", "value":3}]' --type json
+----
+
+=== Tools
+
+[source,sh]
+----
+# print log from Operator
+oc logs -f $(oc get po | grep wildfly-operator | awk '{print $1}')
+# print log from Operator and save it under a log file
+rm -f /tmp/operator.log; oc logs -f $(oc get po | grep wildfly-operator | awk '{print $1}') | tee /tmp/operator.log
+# delete the wildfly operator pod
+oc delete po $(oc get po | grep wildfly-operator | awk '{print $1}')
 ----
